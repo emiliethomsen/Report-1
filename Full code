@@ -16,7 +16,7 @@ def growth_N(N, HN):
 
 def growth_L(beta, I, umax):
     """Light limitation function."""
-    return (beta * I) / np.sqrt(umax**2 + alpha**2 * I**2)
+    return (beta * I) / np.sqrt(umax**2 + beta**2 * I**2)
 
 # ========================== PARAMETERS ===========================
 
@@ -339,27 +339,28 @@ def model_season(y, t, z, dz, L0, L_amplitude, Kbg, k, umax, beta, HN, epsilon, 
     sigma_N = growth_N(N, HN)
     sigma_L = growth_L(beta, I, umax)
 
-    # Compute fluxes
-    J_P = np.zeros(n)
-    J_N = np.zeros(n)
-    J_D = np.zeros(n)
+    J_D = np.zeros(n+1)
+    J_P = np.zeros(n+1)
+    J_N = np.zeros(n+1)
     
+     # Compute fluxes (excluding the boundaries)
     for i in range(1, n):
-        J_P[i] = Av * (P[i] - P[i-1]) / dz
-        J_N[i] = Av * (N[i] - N[i-1]) / dz
-        J_D[i] = - v * D[i] + Av * (D[i] - D[i-1]) / dz
+         J_P[i] = -Av * (P[i] - P[i-1]) / dz
+         J_N[i] = -Av * (N[i] - N[i-1]) / dz
+         J_D[i] = -v * D[i] - Av * (D[i] - D[i-1]) / dz
 
+     # Boundary conditions
     J_P[0] = J_P[-1] = 0
     J_N[0] = 0
     J_N[-1] = Av * (N[-1] - NB) / dz
     J_D[0] = 0
-    J_D[-1] = v * (D[-2] - D[-1]) / dz
+    J_D[-1] = v * -D[-1]  
 
-    # Compute rate of change
-    dPdt = umax * sigma_L * sigma_N * P - epsilon * P - gamma * P**2 + J_P
-    dNdt = - umax * sigma_L * sigma_N * P + tau * D + J_N
-    dDdt = epsilon * P - tau * D + J_D
-
+     # Differential equations 
+    dPdt = umax * sigma_L * sigma_N * P - epsilon * P - gamma * P**2 - (J_P[1:]-J_P[0:-1])/dz
+    dNdt = - umax * sigma_L * sigma_N * P + tau * D - (J_N[1:]-J_N[0:-1])/dz
+    dDdt = epsilon * P - tau * D - (J_D[1:]-J_D[0:-1])/dz
+     
     return np.concatenate([dPdt, dNdt, dDdt])
 
 # SOLVE ODE SYSTEM
